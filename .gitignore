@@ -1,4 +1,7 @@
 dataset/
+rawdata/
+tmp/
+intermediate/
 
 __pycache__/
 *.py[cod]
