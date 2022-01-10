@@ -40,7 +40,7 @@ def estimate_normals(pcd):
     return pcd
 
 
-def pick_points(pcd):
+def pick_points(pcds):
     print("")
     print(
         "1) Please pick at least three correspondences using [shift + left click]")
@@ -48,7 +48,8 @@ def pick_points(pcd):
     print("2) After picking points, press q for close the window")
     vis = o3d.visualization.VisualizerWithEditing()
     vis.create_window()
-    vis.add_geometry(pcd)
+    for pcd in pcds:
+        vis.add_geometry(pcd)
     vis.run()  # user picks points
     vis.destroy_window()
     print("")

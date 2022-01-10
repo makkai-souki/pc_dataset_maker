@@ -1,6 +1,7 @@
+from pandas.io.formats.format import return_docstring
 from point_cloud.visualise import crop_geometries, draw_geometries
 from point_cloud.conversion import from_numpy_to_pcd
-from point_cloud.operations import manual_registration
+from point_cloud.operations import manual_registration, get_near_points, pick_points
 from common.csv import read_csv_to_pcd
 import configparser
 import json
@@ -20,16 +21,7 @@ class MainApp():
     def run_annotation(self):
         end_flag = False
         self.input_name()
-        tmp_before_path = self.config['DEFAULT']['RawData_Path'] + \
-            '/' + self.before_name + '.csv'
-        tmp_after_path = self.config['DEFAULT']['RawData_Path'] + \
-            '/' + self.after_name + '.csv'
-        self.before_raw_pcd = read_csv_to_pcd(tmp_before_path)
-        self.before_raw_pcd.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['YELLOW']))
-        self.after_raw_pcd = read_csv_to_pcd(tmp_after_path)
-        self.after_raw_pcd.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['BLUE']))
+        self.import_raw_pointclouds()
         draw_geometries([self.before_raw_pcd, self.after_raw_pcd])
         os.makedirs('tmp/' + self.before_name, exist_ok=True)
         os.makedirs('tmp/' + self.after_name, exist_ok=True)
@@ -84,10 +76,23 @@ class MainApp():
         )
 
     def run_registration(self):
-        pass
-
-    def run(self):
         self.input_name()
+        self.import_raw_pointclouds()
+        manual_registration(self.before_raw_pcd, self.after_raw_pcd)
+
+    def run_split(self):
+        self.collapse_name = input()
+        self.read_annotation_points()
+        self.import_reference_points()
+        self.make_dataset()
+
+    def input_name(self):
+        print('変化前形状名を入力')
+        self.before_name = input()
+        print('変化後形状名を入力')
+        self.after_name = input()
+
+    def import_raw_pointclouds(self):
         tmp_before_path = self.config['DEFAULT']['RawData_Path'] + \
             '/' + self.before_name + '.csv'
         tmp_after_path = self.config['DEFAULT']['RawData_Path'] + \
@@ -98,21 +103,6 @@ class MainApp():
         self.after_raw_pcd = read_csv_to_pcd(tmp_after_path)
         self.after_raw_pcd.paint_uniform_color(
             json.loads(self.config['DEFAULT']['BLUE']))
-        print("before")
-        draw_geometries([self.before_raw_pcd], 'Before')
-        print("after")
-        draw_geometries([self.after_raw_pcd], 'After')
-        os.makedirs('tmp/' + self.before_name, exist_ok=True)
-        os.makedirs('tmp/' + self.after_name, exist_ok=True)
-        # crop_geometries([self.before_raw_pcd], 'After')
-        new_pcds = self.labeling_pcd()
-        draw_geometries(new_pcds)
-
-    def input_name(self):
-        print('変化前形状名を入力')
-        self.before_name = input()
-        print('変化後形状名を入力')
-        self.after_name = input()
 
     def import_directory_pointclouds(self, dir):
         files = glob.glob('./tmp/' + dir + '/*.ply')
@@ -148,9 +138,79 @@ class MainApp():
             json.loads(self.config['DEFAULT']['BLUE']))
         return labeled_pcds
 
-    def import_reference_points(self, filename):
-        pass
+    def read_annotation_points(self):
+        self.before_negative = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/before_negative.ply'
+        )
+        self.before_positive = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/before_positive.ply'
+        )
+        self.after_negative = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/after_negative.ply'
+        )
+        self.after_positive = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/after_positive.ply'
+        )
+        self.before_negative.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['YELLOW']))
+        self.before_positive.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['BLUE']))
+        self.after_negative.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['YELLOW']))
+        self.after_positive.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['BLUE']))
+
+    def import_reference_points(self):
+        end_flag = False
+        while not end_flag:
+            print('input command')
+            command = input()
+            if command == 'f':  # import csv
+                point_df = pd.read_csv(
+                    './intermediate/' + self.collapse_name + '/reference_points.csv')
+                self.reference_points = point_df.loc[:, ['x', 'y', 'z']].values
+                end_flag = True
+            elif command == 'p':  # pick points
+                self.reference_points = pick_points(
+                    [self.before_negative, self.before_positive])
+                end_flag = True
+            elif command == 'r':  # random pick
+                pass
 
     def manual_registration(self):
         _, trans_matrix = manual_registration(
             self.after_raw_pcd, self.before_raw_pcd)
+
+    def make_dataset(self):
+        tmp_before_negative = pd.DataFrame(
+            self.before_negative.points, columns=['x', 'y', 'z'])
+        tmp_before_negative['label'] = 0
+        tmp_before_positive = pd.DataFrame(
+            self.before_positive.points, columns=['x', 'y', 'z'])
+        tmp_before_positive['label'] = 0
+        tmp_before_points_df = pd.concat([
+            tmp_before_negative, tmp_before_positive
+        ])
+        self.before_stack = pd.concat([get_near_points(
+            tmp_before_points_df,
+            reference_point[0],
+            reference_point[1],
+            reference_point[2]
+        )
+            for reference_point in self.reference_points])
+        tmp_after_negative = pd.DataFrame(
+            self.after_negative.points, columns=['x', 'y', 'z'])
+        tmp_after_negative['label'] = 0
+        tmp_after_positive = pd.DataFrame(
+            self.after_positive.points, columns=['x', 'y', 'z'])
+        tmp_after_positive['label'] = 1
+        tmp_after_points_df = pd.concat([
+            tmp_after_negative, tmp_after_positive
+        ])
+        self.after_stack = pd.concat([get_near_points(
+            tmp_after_points_df,
+            reference_point[0],
+            reference_point[1],
+            reference_point[2]
+        )
+            for reference_point in self.reference_points])
