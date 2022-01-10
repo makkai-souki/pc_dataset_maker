@@ -160,7 +160,7 @@ class MainApp():
         self.after_positive.paint_uniform_color(
             json.loads(self.config['DEFAULT']['BLUE']))
 
-    def import_reference_points(self):
+    def import_reference_points(self, n=64):
         end_flag = False
         while not end_flag:
             print('input command')
@@ -175,7 +175,13 @@ class MainApp():
                     [self.before_negative, self.before_positive])
                 end_flag = True
             elif command == 'r':  # random pick
-                pass
+                before = np.concatenate(
+                    [self.before_negative.points, self.before_positive.points])
+                reference_points_count = int(len(before) / n)
+                idx = np.random.randint(
+                    len(before), size=reference_points_count)
+                self.reference_points = before[idx, :]
+                end_flag = True
 
     def manual_registration(self):
         _, trans_matrix = manual_registration(
@@ -187,10 +193,11 @@ class MainApp():
         tmp_before_negative['label'] = 0
         tmp_before_positive = pd.DataFrame(
             self.before_positive.points, columns=['x', 'y', 'z'])
-        tmp_before_positive['label'] = 0
+        tmp_before_positive['label'] = 1
         tmp_before_points_df = pd.concat([
             tmp_before_negative, tmp_before_positive
         ])
+        tmp_before_points_df.to_csv('test.csv')
         self.before_stack = pd.concat([get_near_points(
             tmp_before_points_df,
             reference_point[0],
@@ -198,6 +205,9 @@ class MainApp():
             reference_point[2]
         )
             for reference_point in self.reference_points])
+        os.makedirs('./dataset/' + self.collapse_name, exist_ok=True)
+        self.before_stack.to_csv(
+            './dataset/' + self.collapse_name + '/before.csv')
         tmp_after_negative = pd.DataFrame(
             self.after_negative.points, columns=['x', 'y', 'z'])
         tmp_after_negative['label'] = 0
@@ -214,3 +224,5 @@ class MainApp():
             reference_point[2]
         )
             for reference_point in self.reference_points])
+        self.before_stack.to_csv(
+            './dataset/' + self.collapse_name + '/after.csv')
