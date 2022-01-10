@@ -226,3 +226,26 @@ class MainApp():
             for reference_point in self.reference_points])
         self.before_stack.to_csv(
             './dataset/' + self.collapse_name + '/after.csv')
+
+    def run_label_maker(self):
+        print('input collapse name')
+        self.collapse_name = input()
+        self.read_dataset()
+        self.make_label()
+        self.count_label(0)
+
+    def read_dataset(self):
+        self.before_points = pd.read_csv(
+            './dataset/' + self.collapse_name + '/before.csv')
+        self.after_points = pd.read_csv(
+            './dataset/' + self.collapse_name + '/after.csv')
+
+    def make_label(self, n=64):
+        labels = [self.count_label(i, n) for i in range(0, len(self.before_points), 64)]
+        label_df = pd.Series(labels, name='label')
+        label_df.to_csv('./dataset/' + self.collapse_name + '/labels.csv')
+
+    def count_label(self, start, n=64, limit=32):
+        before_labels = self.before_points[start:start+n]['label'].values
+        after_labels = self.after_points[start:start+n]['label'].values
+        return 1 if sum([1 for i in range(n) if before_labels[i] or after_labels[i]]) > limit else 0
