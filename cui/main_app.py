@@ -41,6 +41,11 @@ class Run(object):
         self.main_app.read_dataset()
         self.main_app.make_label(num_points, limit)
 
+    def clip(self, file_name):
+        points = pd.read_csv('./rawdata/' + file_name, header=None)
+        points = from_numpy_to_pcd(points.values)
+        crop_geometries([points])
+
 
 class MainApp():
     def __init__(self):
@@ -316,13 +321,6 @@ class MainApp():
         before_labels = self.before_points[start:start+n]['label'].values
         after_labels = self.after_points[start:start+n]['label'].values
         return 1 if sum([1 for i in range(n) if before_labels[i] or after_labels[i]]) > limit else 0
-
-    def run_clip(self):
-        print('input file name')
-        file = input()
-        points = pd.read_csv('./rawdata/' + file, header=None)
-        points = from_numpy_to_pcd(points.values)
-        crop_geometries([points])
 
     def make_dataset_stream(self, num_points=64):
         os.makedirs('./dataset/' + self.collapse_name, exist_ok=True)
