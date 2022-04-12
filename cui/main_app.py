@@ -11,19 +11,41 @@ import numpy as np
 import pandas as pd
 
 
+class Run(object):
+    def __init__(self):
+        self.main_app = MainApp()
+
+    def test(self):
+        print("test")
+
+    def annotation(self, before_name, after_name):
+        self.main_app.set_variation_names(before_name, after_name)
+        self.main_app.import_raw_pointclouds()
+        self.main_app.draw_variation()
+        self.main_app.crop_loop()
+
+
 class MainApp():
     def __init__(self):
-        print('main app!')
         self.config = configparser.ConfigParser()
         self.config.read('config.ini', encoding='utf-8')
 
-    def run_annotation(self):
-        end_flag = False
-        self.input_name()
-        self.import_raw_pointclouds()
-        draw_geometries([self.before_raw_pcd, self.after_raw_pcd])
+    def set_variation_names(self, before_name, after_name):
+        self.before_name = before_name
+        self.after_name = after_name
+
+    def set_collapse_name(self, collapse_name):
+        self.collapse_name = collapse_name
+
+    def make_tmp_directry(self):
         os.makedirs('tmp/' + self.before_name, exist_ok=True)
         os.makedirs('tmp/' + self.after_name, exist_ok=True)
+
+    def draw_variation(self):
+        draw_geometries([self.before_raw_pcd, self.after_raw_pcd])
+
+    def crop_loop(self):
+        end_flag = False
         while not end_flag:
             print('input command')
             command = input()
@@ -267,16 +289,6 @@ class MainApp():
         points = pd.read_csv('./rawdata/' + file, header=None)
         points = from_numpy_to_pcd(points.values)
         crop_geometries([points])
-        # print('input file name (.ply)')
-        # geometry_file = input()
-        # point_cloud = o3d.io.read_point_cloud(
-        #     './intermediate/clip/' + geometry_file
-        # )
-        # export_points = point_cloud.points
-        # print('input export file name')
-        # export_file_name = input()
-        # np.savetxt('./intermediate/clip/' + export_file_name,
-        #            export_points, delimiter=',')
 
     def make_dataset_stream(self):
         os.makedirs('./dataset/' + self.collapse_name, exist_ok=True)
