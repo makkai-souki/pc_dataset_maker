@@ -29,12 +29,12 @@ class Run(object):
         self.main_app.import_raw_pointclouds()
         self.main_app.registrate_variation()
 
-    def split(self, collapse_name, reference_mode='r', num_points=64, ref_path=None, edge_dir=None, freq=64):
+    def split(self, collapse_name, reference_mode='r', num_points=64, ref_path=None, edge_dir=None, freq=64, relative=True):
         self.main_app.set_collapse_name(collapse_name)
         self.main_app.read_annotation_points()
         self.main_app.set_reference_points(reference_mode, ref_path,
                                            edge_dir, freq)
-        self.main_app.make_dataset_stream(num_points)
+        self.main_app.make_dataset_stream(num_points, relative)
 
     def label(self, collapse_name, num_points=64, limit=32):
         self.main_app.set_collapse_name(collapse_name)
@@ -266,45 +266,6 @@ class MainApp():
         _, trans_matrix = manual_registration(
             self.after_raw_pcd, self.before_raw_pcd)
 
-    def make_dataset(self):
-        tmp_before_negative = pd.DataFrame(
-            self.before_negative.points, columns=['x', 'y', 'z'])
-        tmp_before_negative['label'] = 0
-        tmp_before_positive = pd.DataFrame(
-            self.before_positive.points, columns=['x', 'y', 'z'])
-        tmp_before_positive['label'] = 1
-        tmp_before_points_df = pd.concat([
-            tmp_before_negative, tmp_before_positive
-        ])
-        self.before_stack = pd.concat([get_near_points(
-            tmp_before_points_df,
-            reference_point[0],
-            reference_point[1],
-            reference_point[2]
-        )
-            for reference_point in self.reference_points])
-        os.makedirs('./dataset/' + self.collapse_name, exist_ok=True)
-        self.before_stack.to_csv(
-            './dataset/' + self.collapse_name + '/before.csv')
-        tmp_after_negative = pd.DataFrame(
-            self.after_negative.points, columns=['x', 'y', 'z'])
-        tmp_after_negative['label'] = 0
-        tmp_after_positive = pd.DataFrame(
-            self.after_positive.points, columns=['x', 'y', 'z'])
-        tmp_after_positive['label'] = 1
-        tmp_after_points_df = pd.concat([
-            tmp_after_negative, tmp_after_positive
-        ])
-        self.after_stack = pd.concat([get_near_points(
-            tmp_after_points_df,
-            reference_point[0],
-            reference_point[1],
-            reference_point[2]
-        )
-            for reference_point in self.reference_points])
-        self.before_stack.to_csv(
-            './dataset/' + self.collapse_name + '/after.csv')
-
     def read_dataset(self):
         self.before_points = pd.read_csv(
             './dataset/' + self.collapse_name + '/before.csv')
@@ -322,7 +283,7 @@ class MainApp():
         after_labels = self.after_points[start:start+n]['label'].values
         return 1 if sum([1 for i in range(n) if before_labels[i] or after_labels[i]]) > limit else 0
 
-    def make_dataset_stream(self, num_points=64):
+    def make_dataset_stream(self, num_points=64, relative=True):
         os.makedirs('./dataset/' + self.collapse_name, exist_ok=True)
         tmp_before_negative = pd.DataFrame(
             self.before_negative.points, columns=['x', 'y', 'z'])
@@ -349,14 +310,16 @@ class MainApp():
                 reference_point[0],
                 reference_point[1],
                 reference_point[2],
-                n=num_points
+                n=num_points,
+                relative=relative
             )
             after_near_points = get_near_points(
                 tmp_after_points_df,
                 reference_point[0],
                 reference_point[1],
                 reference_point[2],
-                n=num_points
+                n=num_points,
+                relative=relative
             )
             if step == 0:
                 before_near_points.to_csv(

@@ -3,7 +3,7 @@ import numpy as np
 
 
 def get_near_points(points, x, y, z, *, x_name='x',
-                    y_name='y', z_name='z', n=64):
+                    y_name='y', z_name='z', n=64, relative=True):
     """ 座標(x,y,z)から距離の近い点n個を抽出する関数
 
     Args:
@@ -21,6 +21,10 @@ def get_near_points(points, x, y, z, *, x_name='x',
     """
     points['norm'] = (points[x_name] - x) ** 2 + \
         (points[y_name] - y) ** 2 + (points[z_name] - z) ** 2
+    if relative:
+        points['rel_' + x_name] = points[x_name] - x
+        points['rel_' + y_name] = points[y_name] - y
+        points['rel_' + z_name] = points[z_name] - z
     return points.sort_values('norm')[0:n]
 
 
