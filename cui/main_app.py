@@ -277,3 +277,53 @@ class MainApp():
         # export_file_name = input()
         # np.savetxt('./intermediate/clip/' + export_file_name,
         #            export_points, delimiter=',')
+
+    def make_dataset_stream(self):
+        os.makedirs('./dataset/' + self.collapse_name, exist_ok=True)
+        tmp_before_negative = pd.DataFrame(
+            self.before_negative.points, columns=['x', 'y', 'z'])
+        tmp_before_negative['label'] = 0
+        tmp_before_positive = pd.DataFrame(
+            self.before_positive.points, columns=['x', 'y', 'z'])
+        tmp_before_positive['label'] = 1
+        tmp_before_points_df = pd.concat([
+            tmp_before_negative, tmp_before_positive
+        ])
+        tmp_after_negative = pd.DataFrame(
+            self.after_negative.points, columns=['x', 'y', 'z'])
+        tmp_after_negative['label'] = 0
+        tmp_after_positive = pd.DataFrame(
+            self.after_positive.points, columns=['x', 'y', 'z'])
+        tmp_after_positive['label'] = 1
+        tmp_after_points_df = pd.concat([
+            tmp_after_negative, tmp_after_positive
+        ])
+        step = 0
+        for reference_point in self.reference_points:
+            before_near_points = get_near_points(
+                tmp_before_points_df,
+                reference_point[0],
+                reference_point[1],
+                reference_point[2]
+            )
+            after_near_points = get_near_points(
+                tmp_after_points_df,
+                reference_point[0],
+                reference_point[1],
+                reference_point[2]
+            )
+            if step == 0:
+                before_near_points.to_csv(
+                    './dataset/' + self.collapse_name + '/before.csv')
+                after_near_points.to_csv(
+                    './dataset/' + self.collapse_name + '/after.csv')
+            else:
+                before_near_points.to_csv(
+                    './dataset/' + self.collapse_name + '/before.csv',
+                    mode='a', header=False)
+                after_near_points.to_csv(
+                    './dataset/' + self.collapse_name + '/after.csv',
+                    mode='a', header=False)
+            if step % 100 == 0:
+                print('{}/{}'.format(step, len(self.reference_points)))
+            step += 1
