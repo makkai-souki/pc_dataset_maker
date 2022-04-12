@@ -36,6 +36,11 @@ class Run(object):
                                            edge_dir, freq)
         self.main_app.make_dataset_stream(num_points)
 
+    def label(self, collapse_name, num_points=64, limit=32):
+        self.main_app.set_collapse_name(collapse_name)
+        self.main_app.read_dataset()
+        self.main_app.make_label(num_points, limit)
+
 
 class MainApp():
     def __init__(self):
@@ -144,7 +149,6 @@ class MainApp():
             json.loads(self.config['DEFAULT']['YELLOW']))
         self.after_positive.paint_uniform_color(
             json.loads(self.config['DEFAULT']['BLUE']))
-
 
     def import_directory_pointclouds(self, dir):
         files = glob.glob('./tmp/' + dir + '/*.ply')
@@ -296,21 +300,15 @@ class MainApp():
         self.before_stack.to_csv(
             './dataset/' + self.collapse_name + '/after.csv')
 
-    def run_label_maker(self):
-        print('input collapse name')
-        self.collapse_name = input()
-        self.read_dataset()
-        self.make_label()
-        # self.count_label(0)
-
     def read_dataset(self):
         self.before_points = pd.read_csv(
             './dataset/' + self.collapse_name + '/before.csv')
         self.after_points = pd.read_csv(
             './dataset/' + self.collapse_name + '/after.csv')
 
-    def make_label(self, n=64):
-        labels = [self.count_label(i, n=n, limit=16) for i in range(0, len(self.before_points), 64)]
+    def make_label(self, n=64, limit=16):
+        labels = [self.count_label(i, n=n, limit=limit)
+                  for i in range(0, len(self.before_points), n)]
         label_df = pd.Series(labels, name='label')
         label_df.to_csv('./dataset/' + self.collapse_name + '/labels.csv')
 
