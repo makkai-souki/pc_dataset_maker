@@ -1,4 +1,3 @@
-from pandas.io.formats.format import return_docstring
 from point_cloud.visualise import crop_geometries, draw_geometries
 from point_cloud.conversion import from_numpy_to_pcd
 from point_cloud.operations import manual_registration, get_near_points, pick_points
@@ -81,6 +80,7 @@ class MainApp():
         manual_registration(self.before_raw_pcd, self.after_raw_pcd)
 
     def run_split(self):
+        print('input collapse name')
         self.collapse_name = input()
         self.read_annotation_points()
         self.import_reference_points()
@@ -174,6 +174,17 @@ class MainApp():
                 self.reference_points = pick_points(
                     [self.before_negative, self.before_positive])
                 end_flag = True
+            elif command == 'e':  # random pick (within edge)
+                print('範囲点群ディレクトリ名を入力')
+                dir = input()
+                files = glob.glob('./edge/' + dir + '/*.ply')
+                tmp_points = np.concatenate(
+                    [o3d.io.read_point_cloud(file_name).points for file_name in files])
+                reference_points_count = int(len(tmp_points) / n)
+                idx = np.random.randint(
+                    len(tmp_points), size=reference_points_count)
+                self.reference_points = tmp_points[idx, :]
+                end_flag = True
             elif command == 'r':  # random pick
                 before = np.concatenate(
                     [self.before_negative.points, self.before_positive.points])
@@ -182,6 +193,7 @@ class MainApp():
                     len(before), size=reference_points_count)
                 self.reference_points = before[idx, :]
                 end_flag = True
+        print('imported')
 
     def manual_registration(self):
         _, trans_matrix = manual_registration(
@@ -197,7 +209,6 @@ class MainApp():
         tmp_before_points_df = pd.concat([
             tmp_before_negative, tmp_before_positive
         ])
-        tmp_before_points_df.to_csv('test.csv')
         self.before_stack = pd.concat([get_near_points(
             tmp_before_points_df,
             reference_point[0],
@@ -232,7 +243,7 @@ class MainApp():
         self.collapse_name = input()
         self.read_dataset()
         self.make_label()
-        self.count_label(0)
+        # self.count_label(0)
 
     def read_dataset(self):
         self.before_points = pd.read_csv(
@@ -241,11 +252,28 @@ class MainApp():
             './dataset/' + self.collapse_name + '/after.csv')
 
     def make_label(self, n=64):
-        labels = [self.count_label(i, n) for i in range(0, len(self.before_points), 64)]
+        labels = [self.count_label(i, n=n, limit=16) for i in range(0, len(self.before_points), 64)]
         label_df = pd.Series(labels, name='label')
         label_df.to_csv('./dataset/' + self.collapse_name + '/labels.csv')
 
-    def count_label(self, start, n=64, limit=32):
+    def count_label(self, start, *, n=64, limit=32):
         before_labels = self.before_points[start:start+n]['label'].values
         after_labels = self.after_points[start:start+n]['label'].values
         return 1 if sum([1 for i in range(n) if before_labels[i] or after_labels[i]]) > limit else 0
+
+    def run_clip(self):
+        print('input file name')
+        file = input()
+        points = pd.read_csv('./rawdata/' + file, header=None)
+        points = from_numpy_to_pcd(points.values)
+        crop_geometries([points])
+        # print('input file name (.ply)')
+        # geometry_file = input()
+        # point_cloud = o3d.io.read_point_cloud(
+        #     './intermediate/clip/' + geometry_file
+        # )
+        # export_points = point_cloud.points
+        # print('input export file name')
+        # export_file_name = input()
+        # np.savetxt('./intermediate/clip/' + export_file_name,
+        #            export_points, delimiter=',')
