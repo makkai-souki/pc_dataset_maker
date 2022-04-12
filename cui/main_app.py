@@ -24,6 +24,11 @@ class Run(object):
         self.main_app.draw_variation()
         self.main_app.crop_loop()
 
+    def registration(self, before_name, after_name):
+        self.main_app.set_variation_names(before_name, after_name)
+        self.main_app.import_raw_pointclouds()
+        self.main_app.registrate_variation()
+
 
 class MainApp():
     def __init__(self):
@@ -36,6 +41,18 @@ class MainApp():
 
     def set_collapse_name(self, collapse_name):
         self.collapse_name = collapse_name
+
+    def import_raw_pointclouds(self):
+        tmp_before_path = self.config['DEFAULT']['RawData_Path'] + \
+            '/' + self.before_name + '.csv'
+        tmp_after_path = self.config['DEFAULT']['RawData_Path'] + \
+            '/' + self.after_name + '.csv'
+        self.before_raw_pcd = read_csv_to_pcd(tmp_before_path)
+        self.before_raw_pcd.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['YELLOW']))
+        self.after_raw_pcd = read_csv_to_pcd(tmp_after_path)
+        self.after_raw_pcd.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['BLUE']))
 
     def make_tmp_directry(self):
         os.makedirs('tmp/' + self.before_name, exist_ok=True)
@@ -96,10 +113,8 @@ class MainApp():
             after_pcds[1]
         )
 
-    def run_registration(self):
-        self.input_name()
-        self.import_raw_pointclouds()
-        manual_registration(self.before_raw_pcd, self.after_raw_pcd)
+    def registrate_variation(self):
+        manual_registration([self.before_raw_pcd], [self.after_raw_pcd])
 
     def run_split(self):
         print('input collapse name')
@@ -114,17 +129,6 @@ class MainApp():
         print('変化後形状名を入力')
         self.after_name = input()
 
-    def import_raw_pointclouds(self):
-        tmp_before_path = self.config['DEFAULT']['RawData_Path'] + \
-            '/' + self.before_name + '.csv'
-        tmp_after_path = self.config['DEFAULT']['RawData_Path'] + \
-            '/' + self.after_name + '.csv'
-        self.before_raw_pcd = read_csv_to_pcd(tmp_before_path)
-        self.before_raw_pcd.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['YELLOW']))
-        self.after_raw_pcd = read_csv_to_pcd(tmp_after_path)
-        self.after_raw_pcd.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['BLUE']))
 
     def import_directory_pointclouds(self, dir):
         files = glob.glob('./tmp/' + dir + '/*.ply')
