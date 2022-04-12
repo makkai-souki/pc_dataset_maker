@@ -29,6 +29,13 @@ class Run(object):
         self.main_app.import_raw_pointclouds()
         self.main_app.registrate_variation()
 
+    def split(self, collapse_name, reference_mode='r', num_points=64, ref_path=None, edge_dir=None, freq=64):
+        self.main_app.set_collapse_name(collapse_name)
+        self.main_app.read_annotation_points()
+        self.main_app.set_reference_points(reference_mode, ref_path,
+                                           edge_dir, freq)
+        self.main_app.make_dataset_stream(num_points)
+
 
 class MainApp():
     def __init__(self):
@@ -116,18 +123,27 @@ class MainApp():
     def registrate_variation(self):
         manual_registration([self.before_raw_pcd], [self.after_raw_pcd])
 
-    def run_split(self):
-        print('input collapse name')
-        self.collapse_name = input()
-        self.read_annotation_points()
-        self.import_reference_points()
-        self.make_dataset()
-
-    def input_name(self):
-        print('変化前形状名を入力')
-        self.before_name = input()
-        print('変化後形状名を入力')
-        self.after_name = input()
+    def read_annotation_points(self):
+        self.before_negative = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/before_negative.ply'
+        )
+        self.before_positive = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/before_positive.ply'
+        )
+        self.after_negative = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/after_negative.ply'
+        )
+        self.after_positive = o3d.io.read_point_cloud(
+            './intermediate/' + self.collapse_name + '/after_positive.ply'
+        )
+        self.before_negative.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['YELLOW']))
+        self.before_positive.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['BLUE']))
+        self.after_negative.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['YELLOW']))
+        self.after_positive.paint_uniform_color(
+            json.loads(self.config['DEFAULT']['BLUE']))
 
 
     def import_directory_pointclouds(self, dir):
@@ -186,15 +202,42 @@ class MainApp():
         self.after_positive.paint_uniform_color(
             json.loads(self.config['DEFAULT']['BLUE']))
 
+    def set_reference_points(self, mode,
+                             ref_path=None, edge_dir=None, freq=64):
+        if mode == 'r':  # random pick
+            self.get_reference_points_randomly(freq)
+        elif mode == 'e':
+            self.get_reference_points_within_edge(freq, edge_dir)
+        elif mode == 'f':
+            self.get_reference_points_from_csv(ref_path)
+
+    def get_reference_points_randomly(self, freq):
+        before = np.concatenate(
+                    [self.before_negative.points, self.before_positive.points])
+        reference_points_count = int(len(before) / freq)
+        idx = np.random.randint(len(before), size=reference_points_count)
+        self.reference_points = before[idx, :]
+
+    def get_reference_points_within_edge(self, freq, edge_dir):
+        files = glob.glob('./edge/' + edge_dir + '/*.ply')
+        tmp_points = np.concatenate(
+            [o3d.io.read_point_cloud(file_name).points for file_name in files])
+        reference_points_count = int(len(tmp_points) / freq)
+        idx = np.random.randint(len(tmp_points), size=reference_points_count)
+        self.reference_points = tmp_points[idx, :]
+
+    def get_reference_points_from_csv(self, file_path):
+        point_df = pd.read_csv(file_path)
+        self.reference_points = point_df.loc[:, ['x', 'y', 'z']].values
+
     def import_reference_points(self, n=64):
         end_flag = False
         while not end_flag:
             print('input command')
             command = input()
             if command == 'f':  # import csv
-                point_df = pd.read_csv(
+                self.get_reference_points_from_csv(
                     './intermediate/' + self.collapse_name + '/reference_points.csv')
-                self.reference_points = point_df.loc[:, ['x', 'y', 'z']].values
                 end_flag = True
             elif command == 'p':  # pick points
                 self.reference_points = pick_points(
@@ -203,21 +246,10 @@ class MainApp():
             elif command == 'e':  # random pick (within edge)
                 print('範囲点群ディレクトリ名を入力')
                 dir = input()
-                files = glob.glob('./edge/' + dir + '/*.ply')
-                tmp_points = np.concatenate(
-                    [o3d.io.read_point_cloud(file_name).points for file_name in files])
-                reference_points_count = int(len(tmp_points) / n)
-                idx = np.random.randint(
-                    len(tmp_points), size=reference_points_count)
-                self.reference_points = tmp_points[idx, :]
+                self.get_reference_points_within_edge(n, dir)
                 end_flag = True
             elif command == 'r':  # random pick
-                before = np.concatenate(
-                    [self.before_negative.points, self.before_positive.points])
-                reference_points_count = int(len(before) / n)
-                idx = np.random.randint(
-                    len(before), size=reference_points_count)
-                self.reference_points = before[idx, :]
+                self.get_random_reference_points(n)
                 end_flag = True
         print('imported')
 
@@ -294,7 +326,7 @@ class MainApp():
         points = from_numpy_to_pcd(points.values)
         crop_geometries([points])
 
-    def make_dataset_stream(self):
+    def make_dataset_stream(self, num_points=64):
         os.makedirs('./dataset/' + self.collapse_name, exist_ok=True)
         tmp_before_negative = pd.DataFrame(
             self.before_negative.points, columns=['x', 'y', 'z'])
@@ -320,13 +352,15 @@ class MainApp():
                 tmp_before_points_df,
                 reference_point[0],
                 reference_point[1],
-                reference_point[2]
+                reference_point[2],
+                n=num_points
             )
             after_near_points = get_near_points(
                 tmp_after_points_df,
                 reference_point[0],
                 reference_point[1],
-                reference_point[2]
+                reference_point[2],
+                n=num_points
             )
             if step == 0:
                 before_near_points.to_csv(
