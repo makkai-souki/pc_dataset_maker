@@ -189,28 +189,6 @@ class MainApp():
             json.loads(self.config['DEFAULT']['BLUE']))
         return labeled_pcds
 
-    def read_annotation_points(self):
-        self.before_negative = o3d.io.read_point_cloud(
-            './intermediate/' + self.collapse_name + '/before_negative.ply'
-        )
-        self.before_positive = o3d.io.read_point_cloud(
-            './intermediate/' + self.collapse_name + '/before_positive.ply'
-        )
-        self.after_negative = o3d.io.read_point_cloud(
-            './intermediate/' + self.collapse_name + '/after_negative.ply'
-        )
-        self.after_positive = o3d.io.read_point_cloud(
-            './intermediate/' + self.collapse_name + '/after_positive.ply'
-        )
-        self.before_negative.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['YELLOW']))
-        self.before_positive.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['BLUE']))
-        self.after_negative.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['YELLOW']))
-        self.after_positive.paint_uniform_color(
-            json.loads(self.config['DEFAULT']['BLUE']))
-
     def set_reference_points(self, mode,
                              ref_path=None, edge_dir=None, freq=64):
         if mode == 'r':  # random pick
