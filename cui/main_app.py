@@ -1,6 +1,6 @@
 from point_cloud.visualise import crop_geometries, draw_geometries
 from point_cloud.conversion import from_numpy_to_pcd
-from point_cloud.operations import manual_registration, get_near_points, pick_points
+from point_cloud.operations import PointSeparator, manual_registration, pick_points
 from common.csv import read_csv_to_pcd
 import configparser
 import json
@@ -29,8 +29,10 @@ class Run(object):
         self.main_app.import_raw_pointclouds()
         self.main_app.registrate_variation()
 
-    def split(self, collapse_name, reference_mode='r', num_points=64, ref_path=None, edge_dir=None, freq=64, relative=True):
+    def split(self, collapse_name, reference_mode='r', num_points=64, ref_path=None, 
+              edge_dir=None, freq=64, relative=True, separate_mode='ns'):
         self.main_app.set_collapse_name(collapse_name)
+        self.main_app.set_separate_mode(separate_mode)
         self.main_app.read_annotation_points()
         self.main_app.set_reference_points(reference_mode, ref_path,
                                            edge_dir, freq)
@@ -58,6 +60,9 @@ class MainApp():
 
     def set_collapse_name(self, collapse_name):
         self.collapse_name = collapse_name
+
+    def set_separate_mode(self, separate_mode):
+        self.separate_mode = separate_mode
 
     def import_raw_pointclouds(self):
         tmp_before_path = self.config['DEFAULT']['RawData_Path'] + \
@@ -283,21 +288,18 @@ class MainApp():
         ])
         step = 0
         for reference_point in self.reference_points:
-            before_near_points = get_near_points(
+            point_separator = PointSeparator(num_points, self.separate_mode)
+            before_near_points = point_separator.get_near_points(
                 tmp_before_points_df,
                 reference_point[0],
                 reference_point[1],
-                reference_point[2],
-                n=num_points,
-                relative=relative
+                reference_point[2]
             )
-            after_near_points = get_near_points(
+            after_near_points = point_separator.get_near_points(
                 tmp_after_points_df,
                 reference_point[0],
                 reference_point[1],
-                reference_point[2],
-                n=num_points,
-                relative=relative
+                reference_point[2]
             )
             if step == 0:
                 before_near_points.to_csv(

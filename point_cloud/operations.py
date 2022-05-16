@@ -2,6 +2,51 @@ import open3d as o3d
 import numpy as np
 
 
+class PointSeparator():
+    def __init__(self, num_points, mode):
+        self.num_points = num_points
+        self.mode = mode
+
+    def get_near_points(self, points, x, y, z):
+        if self.mode == 'ns':
+            return self.sphere_pick(points, x, y, z, normalize=True)
+        elif self.mode == 'nc':
+            return self.circle_pick(points, x, y, z, normalize=True)
+        elif self.mode == 's':
+            return self.sphere_pick(points, x, y, z, normalize=False)
+        elif self.mode == 'c':
+            return self.circle_pick(points, x, y, z, normalize=False)
+
+    def sphere_pick(self, points, x, y, z, normalize=False):
+        points['norm'] = (points['x'] - x) ** 2 + \
+        (points['y'] - y) ** 2 + (points['z'] - z) ** 2
+        points = points.sort_values('norm')[0:self.num_points]
+        points['rel_x'] = points['x'] - x
+        points['rel_y'] = points['y'] - y
+        points['rel_z'] = points['z'] - z
+        if normalize:
+            points = self.normalize_points(points)
+        return points
+
+    def circle_pick(self, points, x, y, z, normalize=False):
+        points['norm'] = (points['x'] - x) ** 2 + \
+        (points['y'] - y) ** 2
+        points = points.sort_values('norm')[0:self.num_points]
+        points['rel_x'] = points['x'] - x
+        points['rel_y'] = points['y'] - y
+        points['rel_z'] = points['z'] - z
+        if normalize:
+            points = self.normalize_points(points)
+        return points
+
+    def normalize_points(self, points):
+        points['rel_x'] = (points['rel_x'] - points['rel_x'].mean()) / points['rel_x'].std()
+        points['rel_y'] = (points['rel_y'] - points['rel_y'].mean()) / points['rel_y'].std()
+        points['rel_z'] = (points['rel_z'] - points['rel_z'].mean()) / points['rel_z'].std()
+        return points
+
+
+
 def get_near_points(points, x, y, z, *, x_name='x',
                     y_name='y', z_name='z', n=64, relative=True):
     """ 座標(x,y,z)から距離の近い点n個を抽出する関数
@@ -21,6 +66,17 @@ def get_near_points(points, x, y, z, *, x_name='x',
     """
     points['norm'] = (points[x_name] - x) ** 2 + \
         (points[y_name] - y) ** 2 + (points[z_name] - z) ** 2
+    if relative:
+        points['rel_' + x_name] = points[x_name] - x
+        points['rel_' + y_name] = points[y_name] - y
+        points['rel_' + z_name] = points[z_name] - z
+    return points.sort_values('norm')[0:n]
+
+
+def get_near_points_circle(points, x, y, z, *, x_name='x',
+                    y_name='y', z_name='z', n=64, relative=True):
+    points['norm'] = (points[x_name] - x) ** 2 + \
+        (points[y_name] - y) ** 2
     if relative:
         points['rel_' + x_name] = points[x_name] - x
         points['rel_' + y_name] = points[y_name] - y
