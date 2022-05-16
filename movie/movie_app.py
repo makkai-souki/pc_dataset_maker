@@ -2,23 +2,55 @@ import os
 import cv2
 
 
-class MovieApp():
+class Movie():
     def __init__(self):
         pass
 
-    def frame(self, file, directry, fps=30):
-        file_name = './video/{}'.format(file)
-        directry = './frames/{}'.format(directry)
-        os.makedirs(directry)
-        cap = cv2.VideoCapture(file_name)
+    def frame(self, file, directry, freq=1, magnification=1):
+        self.movie_app = MovieApp()
+        self.movie_app.set_filename(file)
+        self.movie_app.set_directry_name(directry)
+        self.movie_app.set_freq(freq)
+        self.movie_app.set_magnification(magnification)
+        self.movie_app.make_directry()
+        self.movie_app.capture_video()
+        self.movie_app.frame_loop()
+
+
+class MovieApp():
+    def set_filename(self, file):
+        self.file = './video/{}'.format(file)
+
+    def set_directry_name(self, directry):
+        self.directry = './frames/{}'.format(directry)
+
+    def set_freq(self, freq):
+        self.freq = int(freq)
+
+    def set_magnification(self, magnification):
+        self.magnification = float(magnification)
+
+    def make_directry(self):
+        os.makedirs(self.directry, exist_ok=True)
+
+    def capture_video(self):
+        self.cap = cv2.VideoCapture(self.file)
+
+    def frame_loop(self):
         frame_number = int(0)
         while True:
-            is_captured, c_frame = cap.read()
+            is_captured, c_frame = self.cap.read()
             if is_captured:
-                cv2.imwrite(directry + '/' + str((10000 + frame_number)
-                                                 * 10000000) + '.png', c_frame)
-                frame_number += 1
+                if frame_number % self.freq == 0:
+                    new_frame = self.resize_frame(c_frame)
+                    cv2.imwrite(self.directry + '/' + str((1000 + frame_number) * 10000000) + '.png', new_frame)
             else:
                 break
+            frame_number += 1
             if frame_number % 100 == 0:
                 print(frame_number)
+
+    def resize_frame(self, frame):
+        height = frame.shape[0]
+        width = frame.shape[1]
+        return cv2.resize(frame, (int(width * self.magnification), int(height * self.magnification)))
