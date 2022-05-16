@@ -2,6 +2,9 @@ dataset/
 rawdata/
 tmp/
 intermediate/
+video/
+frames/
+
 
 __pycache__/
 *.py[cod]
