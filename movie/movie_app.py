@@ -12,10 +12,13 @@ class MovieApp():
         os.makedirs(directry)
         cap = cv2.VideoCapture(file_name)
         frame_number = int(0)
-        end_frag, c_frame = cap.read()
-        while end_frag:
-            cv2.imwrite(directry + '/' + str((10000 + frame_number)
-                                             * 10000000) + '.png', c_frame)
-            frame_number += 1
-            print(frame_number)
-            end_flag, c_frame = cap.read()
+        while True:
+            is_captured, c_frame = cap.read()
+            if is_captured:
+                cv2.imwrite(directry + '/' + str((10000 + frame_number)
+                                                 * 10000000) + '.png', c_frame)
+                frame_number += 1
+            else:
+                break
+            if frame_number % 100 == 0:
+                print(frame_number)
