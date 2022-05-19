@@ -6,13 +6,14 @@ class Movie():
     def __init__(self):
         pass
 
-    def frame(self, file, directry, freq=1, magnification=1, ext='.png'):
+    def frame(self, file, directry, freq=1, magnification=1, ext='.png', blur=None):
         self.movie_app = MovieApp()
         self.movie_app.set_filename(file)
         self.movie_app.set_directry_name(directry)
         self.movie_app.set_freq(freq)
         self.movie_app.set_magnification(magnification)
         self.movie_app.set_extension(ext)
+        self.movie_app.set_blur_mode(blur)
         self.movie_app.make_directry()
         self.movie_app.capture_video()
         self.movie_app.frame_loop()
@@ -34,6 +35,9 @@ class MovieApp():
     def set_extension(self, ext):
         self.ext = ext
 
+    def set_blur_mode(self, blur_mode):
+        self.blur_mode = blur_mode
+
     def make_directry(self):
         os.makedirs(self.directry, exist_ok=True)
 
@@ -47,6 +51,7 @@ class MovieApp():
             if is_captured:
                 if frame_number % self.freq == 0:
                     new_frame = self.resize_frame(c_frame)
+                    new_frame = self.blur_frame(new_frame)
                     cv2.imwrite(self.directry + '/' + str((100000 + frame_number) * 100000) + self.ext, new_frame)
             else:
                 break
@@ -62,3 +67,10 @@ class MovieApp():
 
     def print_size(self, frame):
         print('width:{}, height: {}'.format(frame.shape[1], frame.shape[0]))
+
+    def blur_frame(self, frame, size=(5, 5)):
+        if self.blur_mode == 'g':
+            frame = cv2.GaussianBlur(frame, size, 3)
+        elif self.blur_mode == 'n':
+            frame = cv2.blur(frame, size)
+        return frame
